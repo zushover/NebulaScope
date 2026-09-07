@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="NebulaScope 本地 LLM/VLM 推理遥测面板" />
+    <title>NebulaScope · Inference Telemetry</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark" aria-hidden="true"><span></span></div>
+          <div>
+            <h1>NebulaScope</h1>
+            <p>LOCAL INFERENCE TELEMETRY</p>
+          </div>
+        </div>
+        <div class="connection"><span id="connectionDot"></span><span id="connectionText">CONNECTING</span></div>
+      </header>
+
+      <section class="status-strip" aria-label="运行状态">
+        <div><span class="eyebrow">GPU</span><strong id="gpuName">Detecting…</strong></div>
+        <div><span class="eyebrow">MODEL</span><strong id="modelName">Not connected</strong></div>
+        <div><span class="eyebrow">ENGINE</span><strong id="engineName">—</strong></div>
+        <div class="run-state"><span class="pulse"></span><div><span class="eyebrow">STATUS</span><strong id="runStatus">Idle</strong></div></div>
+      </section>
+
+      <section class="section-heading"><div><span>01</span><h2>Compute Core</h2></div><p>GPU / MEMORY / THERMALS</p></section>
+      <section class="metric-grid gpu-grid">
+        <article class="metric featured"><div class="metric-label">GPU Utilization</div><div class="metric-value"><strong id="gpuUtil">—</strong><span>%</span></div><div class="meter"><i id="gpuUtilBar"></i></div></article>
+        <article class="metric wide"><div class="metric-label">VRAM</div><div class="metric-value compact"><strong id="vram">— / —</strong><span>GB</span></div><div class="metric-foot"><span id="vramPct">—%</span> allocated</div></article>
+        <article class="metric"><div class="metric-label">Power</div><div class="metric-value"><strong id="power">—</strong><span>W</span></div></article>
+        <article class="metric"><div class="metric-label">Temperature</div><div class="metric-value"><strong id="temperature">—</strong><span>°C</span></div></article>
+        <article class="metric mini"><div class="metric-label">Core Clock</div><div class="metric-value small"><strong id="gpuClock">—</strong><span>MHz</span></div></article>
+        <article class="metric mini"><div class="metric-label">Memory Clock</div><div class="metric-value small"><strong id="memoryClock">—</strong><span>MHz</span></div></article>
+      </section>
+
+      <section class="section-heading"><div><span>02</span><h2>Inference Pulse</h2></div><p>THROUGHPUT / QUEUE / CACHE</p></section>
+      <section class="metric-grid inference-grid">
+        <article class="metric accent"><div class="metric-label">Throughput</div><div class="metric-value"><strong id="throughput">—</strong><span>tok/s</span></div></article>
+        <article class="metric"><div class="metric-label">Batch Size</div><div class="metric-value"><strong id="batchSize">—</strong><span>seq</span></div></article>
+        <article class="metric"><div class="metric-label">Active Requests</div><div class="metric-value"><strong id="activeRequests">—</strong><span>req</span></div></article>
+        <article class="metric wide"><div class="metric-label">KV Cache</div><div class="metric-value compact"><strong id="kvCache">— / —</strong><span>GB</span></div><div class="meter violet"><i id="kvBar"></i></div><div class="metric-foot"><span id="kvPct">—%</span> occupied</div></article>
+        <article class="metric"><div class="metric-label">TTFT</div><div class="metric-value"><strong id="ttft">—</strong><span>ms</span></div></article>
+        <article class="metric"><div class="metric-label">TPOT</div><div class="metric-value"><strong id="tpot">—</strong><span>ms</span></div></article>
+        <article class="metric mini"><div class="metric-label">Input Tokens</div><div class="metric-value small"><strong id="inputTokens">—</strong><span>tok</span></div></article>
+        <article class="metric mini"><div class="metric-label">Output Tokens</div><div class="metric-value small"><strong id="outputTokens">—</strong><span>tok</span></div></article>
+        <article class="metric mini"><div class="metric-label">Prefill Latency</div><div class="metric-value small"><strong id="prefill">—</strong><span>ms</span></div></article>
+        <article class="metric mini"><div class="metric-label">Decode Latency</div><div class="metric-value small"><strong id="decode">—</strong><span>ms</span></div></article>
+      </section>
+
+      <section class="section-heading"><div><span>03</span><h2>Live Signals</h2></div><p>LAST 90 SAMPLES</p></section>
+      <section class="chart-grid">
+        <article class="chart-panel"><div class="chart-title"><span>GPU Utilization</span><b id="chartGpuNow">—%</b></div><canvas id="gpuChart" aria-label="GPU utilization chart"></canvas></article>
+        <article class="chart-panel"><div class="chart-title"><span>VRAM Usage</span><b id="chartVramNow">—%</b></div><canvas id="vramChart" aria-label="VRAM usage chart"></canvas></article>
+        <article class="chart-panel"><div class="chart-title"><span>Throughput</span><b id="chartThroughputNow">— tok/s</b></div><canvas id="throughputChart" aria-label="Throughput chart"></canvas></article>
+        <article class="chart-panel"><div class="chart-title"><span>KV Cache Usage</span><b id="chartKvNow">—%</b></div><canvas id="kvChart" aria-label="KV cache chart"></canvas></article>
+        <article class="chart-panel chart-wide"><div class="chart-title"><span>Latency</span><div class="legend"><i class="cyan"></i>TTFT <i class="purple"></i>TPOT</div></div><canvas id="latencyChart" aria-label="Latency chart"></canvas></article>
+      </section>
+
+      <section class="quality-panel">
+        <div><span class="section-index">04</span><h2>Accuracy / Quality</h2><p>Evaluation adapter ready for lm-evaluation-harness, MMLU, GSM8K, HumanEval and custom datasets.</p></div>
+        <div class="quality-state"><span id="evalBenchmark">NO EVALUATION CONNECTED</span><strong id="evalScore">—</strong><small id="evalMetric">Awaiting benchmark results</small></div>
+      </section>
+      <footer><span>NEBULASCOPE v0.1.0</span><span id="lastUpdate">AWAITING TELEMETRY</span></footer>
+    </main>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>
+

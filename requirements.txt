@@ -1,0 +1,6 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+nvidia-ml-py>=12.560
+httpx>=0.27,<1
+pytest>=8,<9
+
