@@ -21,8 +21,17 @@ NUMERIC_FIELDS = {
     "kv_cache_usage_pct",
     "prefill_latency_ms",
     "decode_latency_ms",
+    "stage_index", "stage_count", "stage_progress_pct", "progress_pct",
+    "completed_items", "total_items", "samples_per_second", "batches_per_second",
+    "e2e_latency_ms", "vision_latency_ms", "compression_latency_ms",
+    "cache_reduction_x", "gpu_basis_gb", "cpu_basis_gb", "peak_vram_gb",
+    "accuracy", "correct_samples", "evaluated_samples", "unparsable_samples",
+    "visual_tokens", "text_tokens", "stage_output_tokens", "error_samples",
+    "empty_answers", "eta_seconds",
 }
-TEXT_FIELDS = {"status", "model_name", "engine_name"}
+TEXT_FIELDS = {"status", "model_name", "engine_name", "task_id", "task_name", "run_name",
+               "dataset_name", "method_name", "protocol_name", "stage_name", "stage_label"}
+OBJECT_FIELDS = {"stages", "custom_metrics"}
 ALIASES = {
     "throughput": "throughput_tps",
     "tokens_per_second": "throughput_tps",
@@ -57,6 +66,12 @@ class EngineMetrics:
                 if value is not None and not isinstance(value, str):
                     raise TypeError(f"{original_key} must be a string or None")
                 normalized[key] = value
+            elif key in OBJECT_FIELDS:
+                if key == "stages" and not isinstance(value, list):
+                    raise TypeError("stages must be a list")
+                if key == "custom_metrics" and not isinstance(value, dict):
+                    raise TypeError("custom_metrics must be an object")
+                normalized[key] = value
             else:
                 unknown.append(original_key)
         if unknown:
@@ -71,4 +86,3 @@ class EngineMetrics:
 
 
 metrics = EngineMetrics()
-

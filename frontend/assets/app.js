@@ -1,113 +1,19 @@
-const $ = (id) => document.getElementById(id);
-const HISTORY = 90;
-const histories = { gpu: [], vram: [], throughput: [], kv: [], ttft: [], tpot: [] };
-const colors = { cyan: "#45e8da", blue: "#5b8cff", violet: "#a073ff" };
-
-function number(value, digits = 0) {
-  return value == null || Number.isNaN(Number(value)) ? "—" : Number(value).toFixed(digits);
-}
-function integer(value) { return value == null ? "—" : Math.round(value).toLocaleString(); }
-function setText(id, value) { $(id).textContent = value; }
-function push(name, value) {
-  histories[name].push(value == null ? null : Number(value));
-  if (histories[name].length > HISTORY) histories[name].shift();
-}
-
-function updateDashboard(sample) {
-  const gpu = sample.gpu || {};
-  const inf = sample.inference || {};
-  const evaluation = sample.evaluation || {};
-  setText("gpuName", gpu.name || "GPU unavailable");
-  setText("modelName", inf.model_name || "Not connected");
-  setText("engineName", inf.engine_name || "—");
-  setText("runStatus", (inf.status || "idle").replaceAll("_", " "));
-  $("runStatus").parentElement.previousElementSibling.classList.toggle("active", inf.status === "running");
-
-  setText("gpuUtil", number(gpu.utilization_pct));
-  setText("vram", `${number(gpu.memory_used_gb, 1)} / ${number(gpu.memory_total_gb, 1)}`);
-  setText("vramPct", `${number(gpu.memory_utilization_pct)}%`);
-  setText("power", number(gpu.power_w));
-  setText("temperature", number(gpu.temperature_c));
-  setText("gpuClock", number(gpu.gpu_clock_mhz));
-  setText("memoryClock", number(gpu.memory_clock_mhz));
-  $("gpuUtilBar").style.width = `${Math.min(100, gpu.utilization_pct || 0)}%`;
-
-  setText("throughput", number(inf.throughput_tps));
-  setText("batchSize", number(inf.batch_size));
-  setText("activeRequests", number(inf.active_requests));
-  setText("kvCache", `${number(inf.kv_cache_used_gb, 1)} / ${number(inf.kv_cache_total_gb, 1)}`);
-  setText("kvPct", `${number(inf.kv_cache_usage_pct)}%`);
-  $("kvBar").style.width = `${Math.min(100, inf.kv_cache_usage_pct || 0)}%`;
-  setText("ttft", number(inf.ttft_ms, 1));
-  setText("tpot", number(inf.tpot_ms, 1));
-  setText("inputTokens", integer(inf.input_tokens));
-  setText("outputTokens", integer(inf.output_tokens));
-  setText("prefill", number(inf.prefill_latency_ms, 1));
-  setText("decode", number(inf.decode_latency_ms, 1));
-
-  setText("chartGpuNow", `${number(gpu.utilization_pct)}%`);
-  setText("chartVramNow", `${number(gpu.memory_utilization_pct)}%`);
-  setText("chartThroughputNow", `${number(inf.throughput_tps)} tok/s`);
-  setText("chartKvNow", `${number(inf.kv_cache_usage_pct)}%`);
-  if (evaluation.score != null) {
-    setText("evalBenchmark", evaluation.benchmark || "CUSTOM EVALUATION");
-    setText("evalScore", `${number(evaluation.score * 100, 1)}%`);
-    setText("evalMetric", `${evaluation.metric_name || "score"}${evaluation.samples ? ` · ${evaluation.samples} samples` : ""}`);
-  }
-  setText("lastUpdate", `UPDATED ${new Date(sample.timestamp).toLocaleTimeString()}`);
-
-  push("gpu", gpu.utilization_pct); push("vram", gpu.memory_utilization_pct);
-  push("throughput", inf.throughput_tps); push("kv", inf.kv_cache_usage_pct);
-  push("ttft", inf.ttft_ms); push("tpot", inf.tpot_ms);
-  drawAll();
-}
-
-function drawChart(canvasId, series, options = {}) {
-  const canvas = $(canvasId);
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, rect.width * dpr); canvas.height = Math.max(1, rect.height * dpr);
-  const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
-  const w = rect.width, h = rect.height, pad = 6;
-  ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = "rgba(130,157,191,.10)"; ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) { const y = (h / 4) * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-  const valid = series.flatMap((s) => s.values.filter((v) => v != null));
-  let min = options.min ?? (valid.length ? Math.min(...valid) : 0);
-  let max = options.max ?? (valid.length ? Math.max(...valid) : 100);
-  if (max <= min) max = min + 1;
-  const range = max - min;
-  series.forEach((item) => {
-    if (item.values.length < 2) return;
-    ctx.beginPath(); ctx.strokeStyle = item.color; ctx.lineWidth = 1.6; ctx.lineJoin = "round"; ctx.lineCap = "round";
-    let drawing = false;
-    item.values.forEach((value, index) => {
-      if (value == null) { drawing = false; return; }
-      const x = pad + (index / Math.max(1, HISTORY - 1)) * (w - pad * 2);
-      const y = h - pad - ((value - min) / range) * (h - pad * 2);
-      if (!drawing) { ctx.moveTo(x, y); drawing = true; } else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  });
-}
-function drawAll() {
-  drawChart("gpuChart", [{ values: histories.gpu, color: colors.cyan }], { min: 0, max: 100 });
-  drawChart("vramChart", [{ values: histories.vram, color: colors.blue }], { min: 0, max: 100 });
-  drawChart("throughputChart", [{ values: histories.throughput, color: colors.cyan }], { min: 0 });
-  drawChart("kvChart", [{ values: histories.kv, color: colors.violet }], { min: 0, max: 100 });
-  drawChart("latencyChart", [{ values: histories.ttft, color: colors.cyan }, { values: histories.tpot, color: colors.violet }], { min: 0 });
-}
-
-let reconnectTimer;
-function connect() {
-  clearTimeout(reconnectTimer);
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${location.host}/ws/metrics`);
-  socket.addEventListener("open", () => { $("connectionDot").parentElement.className = "connection live"; setText("connectionText", "LIVE STREAM"); });
-  socket.addEventListener("message", (event) => updateDashboard(JSON.parse(event.data)));
-  socket.addEventListener("close", () => { $("connectionDot").parentElement.className = "connection offline"; setText("connectionText", "RECONNECTING"); reconnectTimer = setTimeout(connect, 1800); });
-  socket.addEventListener("error", () => socket.close());
-}
-window.addEventListener("resize", drawAll);
-connect();
-
+const $=id=>document.getElementById(id);let all=[],windowSec=600,slider=100,lastTask=null,detail=null;const css=n=>getComputedStyle(document.body).getPropertyValue(n).trim(),num=(v,d=1)=>v==null||!isFinite(v)?'—':Number(v).toFixed(d),text=(id,v)=>$(id)&&($(id).textContent=v);
+function val(row,key,gpu=false){return gpu?row.gpu?.[key]:row.inference?.[key]}function pct(v){if(v==null)return null;return v<=1?v*100:v}
+function stages(i){let a=i.stages||[];if(!a.length&&i.stage_count)a=Array.from({length:i.stage_count},(_,k)=>({name:`阶段 ${k+1}`}));if(!a.length)return;let c=Math.max(1,i.stage_index||1);$('stages').innerHTML=a.map((s,k)=>`<div class="stage ${k+1<c?'done':k+1===c?'active':''}"><i>${k+1<c?'✓':k+1}</i><span>${s.label||s.name||s}</span></div>`).join('');text('stageSummary',`${i.stage_label||i.stage_name||'运行中'} · ${c}/${a.length}`)}
+function eta(sec){if(sec==null)return'预计剩余 —';sec=Math.max(0,sec);return sec<60?`预计剩余 ${Math.round(sec)} 秒`:sec<3600?`预计剩余 ${Math.round(sec/60)} 分钟`:`预计剩余 ${(sec/3600).toFixed(1)} 小时`}
+function update(s,record=true){let g=s.gpu||{},i=s.inference||{},e=s.evaluation||{};lastTask=i.task_id||null;text('taskName',i.task_name||i.run_name||'暂无运行任务');text('modelName',`模型 ${i.model_name||'—'}`);text('datasetName',`数据集 ${i.dataset_name||e.benchmark||'—'}`);text('methodName',`方法 ${i.method_name||'—'}`);text('protocolName',`协议 ${i.protocol_name||'—'}`);let p=i.progress_pct??(i.completed_items!=null&&i.total_items?i.completed_items/i.total_items*100:0);text('progressLabel',i.stage_label||i.stage_name||i.status||'等待任务');text('progressCount',`${i.completed_items??0} / ${i.total_items??0}`);text('progressPct',`${num(p,1)}%`);$('progressBar').style.width=`${Math.min(100,p||0)}%`;text('eta',eta(i.eta_seconds));stages(i);
+let a=i.accuracy??(e.score!=null?e.score*100:null);a=pct(a);text('accuracy',a==null?'—':`${num(a,2)}%`);text('accuracyDetail',`${i.evaluated_samples??e.samples??0} 已评测 · ${i.unparsable_samples??0} 无法解析 · ${i.error_samples??0} 错误`);text('samplesSec',num(i.samples_per_second,2));text('throughput',num(i.throughput_tps,1));text('cacheReduction',i.cache_reduction_x==null?'—':`${num(i.cache_reduction_x,2)}×`);text('gpuCache',`${num(i.kv_cache_used_gb,2)} / ${num(i.gpu_basis_gb,2)} GB`);text('cpuBasis',`CPU Basis ${num(i.cpu_basis_gb,2)} GB`);text('batch',`${num(i.batch_size,0)} / ${num(i.active_requests,0)}`);text('activeRequests',`${num(i.active_requests,0)} active`);
+[['visualTokens','visual_tokens'],['textTokens','text_tokens'],['inputTokens','input_tokens'],['stageOutputTokens','stage_output_tokens'],['vision','vision_latency_ms'],['compression','compression_latency_ms'],['prefill','prefill_latency_ms'],['ttft','ttft_ms'],['decode','decode_latency_ms'],['tpot','tpot_ms'],['e2e','e2e_latency_ms']].forEach(([x,y])=>text(x,num(i[y],y.includes('tokens')?0:1)));text('gpuName',g.name||'GPU unavailable');text('gpuUtil',num(g.utilization_pct,0));text('vram',`${num(g.memory_used_gb,1)} / ${num(g.memory_total_gb,1)}`);text('peakVram',num(i.peak_vram_gb,1));text('power',num(g.power_w,0));text('temperature',num(g.temperature_c,0));text('outputTokens',num(i.output_tokens,0));text('chartSamplesNow',`${num(i.samples_per_second,2)} samples/s`);text('chartAccuracyNow',a==null?'—':`${num(a,2)}%`);text('chartPrefillNow',`${num(i.prefill_latency_ms,1)} ms`);text('chartTpotNow',`${num(i.tpot_ms,2)} ms/token`);text('chartGpuNow',`${num(g.utilization_pct,0)}%`);text('chartVramNow',`${num(g.memory_used_gb,2)} GB`);text('lastUpdate',`更新 ${new Date(s.timestamp).toLocaleTimeString()}`);if(record){all.push(s);if(all.length>20000)all.shift()}renderExperiment(i,g);renderRuns();drawAll()}
+function selected(){if(!all.length)return[];let end=Math.max(1,Math.round(slider/100*all.length)),rows=all.slice(0,end);if(windowSec!=='all'){let t=new Date(rows.at(-1).timestamp).getTime()-windowSec*1000;rows=rows.filter(x=>new Date(x.timestamp).getTime()>=t)}text('historyRange',slider>=99?'实时':`${new Date(rows[0]?.timestamp).toLocaleTimeString()} – ${new Date(rows.at(-1)?.timestamp).toLocaleTimeString()}`);return rows}
+function draw(id,series,yUnit=''){let c=$(id);if(!c)return;let r=c.getBoundingClientRect(),d=devicePixelRatio||1;c.width=r.width*d;c.height=r.height*d;let x=c.getContext('2d');x.scale(d,d);x.clearRect(0,0,r.width,r.height);let rows=selected(),values=series.flatMap(z=>rows.map(z.get).filter(v=>v!=null&&isFinite(v)));if(rows.length<2||!values.length){x.fillStyle=css('--muted');x.font='12px sans-serif';x.fillText('等待时间序列数据',45,r.height/2);return}let lo=Math.min(0,...values),hi=Math.max(...values);if(hi===lo)hi++;let L=48,R=10,T=10,B=27;x.font='10px sans-serif';x.fillStyle=css('--muted');x.strokeStyle=css('--grid');x.lineWidth=1;for(let q=0;q<4;q++){let y=T+q*(r.height-T-B)/3,v=hi-q*(hi-lo)/3;x.beginPath();x.moveTo(L,y);x.lineTo(r.width-R,y);x.stroke();x.fillText(`${v.toFixed(v<10?1:0)}${q===0&&yUnit?' '+yUnit:''}`,2,y+3)}let ticks=[0,Math.floor((rows.length-1)/2),rows.length-1];ticks.forEach((k,q)=>{let px=L+k/(rows.length-1)*(r.width-L-R),t=new Date(rows[k].timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});x.fillText(t,Math.max(L,Math.min(px-22,r.width-52)),r.height-7)});series.forEach(z=>{x.strokeStyle=z.color;x.lineWidth=1.8;x.beginPath();let on=false;rows.forEach((row,k)=>{let v=z.get(row);if(v==null)return;let px=L+k/(rows.length-1)*(r.width-L-R),py=T+(hi-v)/(hi-lo)*(r.height-T-B);on?x.lineTo(px,py):x.moveTo(px,py);on=true});x.stroke()})}
+function drawAll(){let cyan=css('--cyan'),blue=css('--blue'),violet=css('--violet');draw('samplesChart',[{color:cyan,get:s=>s.inference?.samples_per_second}],'samples/s');draw('accuracyChart',[{color:violet,get:s=>pct(s.inference?.accuracy)}],'%');draw('prefillChart',[{color:blue,get:s=>s.inference?.prefill_latency_ms}],'ms');draw('tpotChart',[{color:violet,get:s=>s.inference?.tpot_ms}],'ms/token');draw('gpuChart',[{color:cyan,get:s=>s.gpu?.utilization_pct}],'%');draw('vramChart',[{color:blue,get:s=>s.gpu?.memory_used_gb}],'GB');if(detail)drawDetail()}
+function renderExperiment(i,g){let rows=[['任务ID',i.task_id],['运行名称',i.run_name],['模型',i.model_name],['数据集',i.dataset_name],['方法',i.method_name],['协议',i.protocol_name],['Batch',i.batch_size],['输入 Token',i.input_tokens],['输出 Token',i.output_tokens],['GPU',g.name],['峰值显存',i.peak_vram_gb==null?null:`${num(i.peak_vram_gb)} GB`],['空回答',i.empty_answers]];$('experimentTable').innerHTML=rows.map(([k,v])=>`<article><span>${k}</span><b>${v??'—'}</b></article>`).join('')}
+function renderRuns(){let m=new Map;all.forEach(s=>{let i=s.inference||{},id=i.task_id||'unassigned';if(!m.has(id))m.set(id,{id,name:i.task_name||'未命名任务',start:s.timestamp,last:s.timestamp,count:0,status:i.status});let v=m.get(id);v.last=s.timestamp;v.count++;v.status=i.status});$('runList').innerHTML=[...m.values()].reverse().map(v=>`<article><div><b>${v.name}</b><small>${v.id}</small></div><span>${v.count} 采样</span><span>${new Date(v.start).toLocaleTimeString()}</span><span>${v.status||'—'}</span></article>`).join('')||'<p>尚无历史运行。</p>'}
+function overlay(drawer,on){drawer.classList.toggle('open',on);$('scrim').classList.toggle('open',on);drawer.setAttribute('aria-hidden',!on)}
+function drill(btn){detail={key:btn.dataset.metric||btn.dataset.gpu,gpu:!!btn.dataset.gpu,label:btn.dataset.label,unit:btn.dataset.unit||''};text('metricTitle',detail.label);overlay($('metricDrawer'),true);drawDetail()}
+function drawDetail(){let rows=selected(),vs=rows.map(r=>val(r,detail.key,detail.gpu)).filter(v=>v!=null&&isFinite(v));if(detail.key==='accuracy')vs=vs.map(pct);let unit=detail.unit;text('detailNow',vs.length?`${num(vs.at(-1),2)} ${unit}`:'—');text('detailAvg',vs.length?`${num(vs.reduce((a,b)=>a+b,0)/vs.length,2)} ${unit}`:'—');text('detailMax',vs.length?`${num(Math.max(...vs),2)} ${unit}`:'—');let cyan=css('--cyan');draw('detailChart',[{color:cyan,get:r=>{let v=val(r,detail.key,detail.gpu);return detail.key==='accuracy'?pct(v):v}}],unit)}
+async function history(){try{all=(await(await fetch('/api/history?limit=20000')).json()).samples||[];renderRuns();drawAll()}catch(e){}}
+async function logs(){try{let u=lastTask?`/api/logs?limit=500&task_id=${encodeURIComponent(lastTask)}`:'/api/logs?limit=500',a=(await(await fetch(u)).json()).logs||[];$('logConsole').textContent=a.map(x=>`[${new Date(x.timestamp).toLocaleTimeString()}] [${String(x.level||'info').toUpperCase()}] ${x.source||'runner'}  ${x.message}`).join('\n')||'尚未收到日志。';$('logConsole').scrollTop=$('logConsole').scrollHeight;text('logMeta',`${lastTask||'全部任务'} · ${a.length} 条日志`)}catch(e){}}
+document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===b.dataset.page));drawAll()});document.querySelectorAll('.drill').forEach(b=>b.onclick=()=>drill(b));$('themeBtn').onclick=()=>{let light=!document.body.classList.contains('light');document.body.classList.toggle('light',light);localStorage.setItem('nebula-theme',light?'light':'dark');text('themeBtn',light?'☾ 夜间':'☀ 日间');drawAll()};if(localStorage.getItem('nebula-theme')==='light')$('themeBtn').click();$('logBtn').onclick=()=>{overlay($('logDrawer'),true);logs()};$('closeLogs').onclick=()=>overlay($('logDrawer'),false);$('closeMetric').onclick=()=>overlay($('metricDrawer'),false);$('scrim').onclick=()=>{overlay($('logDrawer'),false);overlay($('metricDrawer'),false)};$('historySlider').oninput=e=>{slider=+e.target.value;drawAll()};document.querySelectorAll('[data-window]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-window]').forEach(x=>x.classList.remove('active'));b.classList.add('active');windowSec=b.dataset.window==='all'?'all':+b.dataset.window;drawAll()});
+function connect(){let w=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/metrics`);w.onopen=()=>{document.querySelector('.connection').classList.add('live');text('connectionText','实时连接')};w.onmessage=e=>update(JSON.parse(e.data));w.onclose=()=>{document.querySelector('.connection').classList.remove('live');text('connectionText','重新连接');setTimeout(connect,1500)};w.onerror=()=>w.close()}window.onresize=drawAll;history();connect();setInterval(()=>{$('logDrawer').classList.contains('open')&&logs()},2000);

@@ -89,6 +89,21 @@ def create_app(
     async def current_metrics() -> dict[str, Any]:
         return active_store.snapshot()
 
+    @app.get("/api/history")
+    async def history(limit: int = 2000, task_id: str | None = None) -> dict[str, Any]:
+        return {"samples": active_store.history(limit=limit, task_id=task_id)}
+
+    @app.get("/api/logs")
+    async def logs(limit: int = 300, task_id: str | None = None) -> dict[str, Any]:
+        return {"logs": active_store.logs(limit=limit, task_id=task_id)}
+
+    @app.post("/api/logs")
+    async def publish_log(request: Request) -> dict[str, Any]:
+        payload = await request.json()
+        if not isinstance(payload, dict) or not isinstance(payload.get("message"), str):
+            raise HTTPException(status_code=422, detail="message must be a string")
+        return {"accepted": active_store.add_log(payload)}
+
     @app.post("/api/metrics/inference")
     async def publish_inference(request: Request) -> dict[str, Any]:
         try:
@@ -144,4 +159,3 @@ if __name__ == "__main__":
         host=args.host,
         port=args.port,
     )
-

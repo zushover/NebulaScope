@@ -1,74 +1,15 @@
-<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="NebulaScope 本地 LLM/VLM 推理遥测面板" />
-    <title>NebulaScope · Inference Telemetry</title>
-    <link rel="stylesheet" href="/assets/style.css" />
-  </head>
-  <body>
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
-    <main class="shell">
-      <header class="topbar">
-        <div class="brand">
-          <div class="mark" aria-hidden="true"><span></span></div>
-          <div>
-            <h1>NebulaScope</h1>
-            <p>LOCAL INFERENCE TELEMETRY</p>
-          </div>
-        </div>
-        <div class="connection"><span id="connectionDot"></span><span id="connectionText">CONNECTING</span></div>
-      </header>
-
-      <section class="status-strip" aria-label="运行状态">
-        <div><span class="eyebrow">GPU</span><strong id="gpuName">Detecting…</strong></div>
-        <div><span class="eyebrow">MODEL</span><strong id="modelName">Not connected</strong></div>
-        <div><span class="eyebrow">ENGINE</span><strong id="engineName">—</strong></div>
-        <div class="run-state"><span class="pulse"></span><div><span class="eyebrow">STATUS</span><strong id="runStatus">Idle</strong></div></div>
-      </section>
-
-      <section class="section-heading"><div><span>01</span><h2>Compute Core</h2></div><p>GPU / MEMORY / THERMALS</p></section>
-      <section class="metric-grid gpu-grid">
-        <article class="metric featured"><div class="metric-label">GPU Utilization</div><div class="metric-value"><strong id="gpuUtil">—</strong><span>%</span></div><div class="meter"><i id="gpuUtilBar"></i></div></article>
-        <article class="metric wide"><div class="metric-label">VRAM</div><div class="metric-value compact"><strong id="vram">— / —</strong><span>GB</span></div><div class="metric-foot"><span id="vramPct">—%</span> allocated</div></article>
-        <article class="metric"><div class="metric-label">Power</div><div class="metric-value"><strong id="power">—</strong><span>W</span></div></article>
-        <article class="metric"><div class="metric-label">Temperature</div><div class="metric-value"><strong id="temperature">—</strong><span>°C</span></div></article>
-        <article class="metric mini"><div class="metric-label">Core Clock</div><div class="metric-value small"><strong id="gpuClock">—</strong><span>MHz</span></div></article>
-        <article class="metric mini"><div class="metric-label">Memory Clock</div><div class="metric-value small"><strong id="memoryClock">—</strong><span>MHz</span></div></article>
-      </section>
-
-      <section class="section-heading"><div><span>02</span><h2>Inference Pulse</h2></div><p>THROUGHPUT / QUEUE / CACHE</p></section>
-      <section class="metric-grid inference-grid">
-        <article class="metric accent"><div class="metric-label">Throughput</div><div class="metric-value"><strong id="throughput">—</strong><span>tok/s</span></div></article>
-        <article class="metric"><div class="metric-label">Batch Size</div><div class="metric-value"><strong id="batchSize">—</strong><span>seq</span></div></article>
-        <article class="metric"><div class="metric-label">Active Requests</div><div class="metric-value"><strong id="activeRequests">—</strong><span>req</span></div></article>
-        <article class="metric wide"><div class="metric-label">KV Cache</div><div class="metric-value compact"><strong id="kvCache">— / —</strong><span>GB</span></div><div class="meter violet"><i id="kvBar"></i></div><div class="metric-foot"><span id="kvPct">—%</span> occupied</div></article>
-        <article class="metric"><div class="metric-label">TTFT</div><div class="metric-value"><strong id="ttft">—</strong><span>ms</span></div></article>
-        <article class="metric"><div class="metric-label">TPOT</div><div class="metric-value"><strong id="tpot">—</strong><span>ms</span></div></article>
-        <article class="metric mini"><div class="metric-label">Input Tokens</div><div class="metric-value small"><strong id="inputTokens">—</strong><span>tok</span></div></article>
-        <article class="metric mini"><div class="metric-label">Output Tokens</div><div class="metric-value small"><strong id="outputTokens">—</strong><span>tok</span></div></article>
-        <article class="metric mini"><div class="metric-label">Prefill Latency</div><div class="metric-value small"><strong id="prefill">—</strong><span>ms</span></div></article>
-        <article class="metric mini"><div class="metric-label">Decode Latency</div><div class="metric-value small"><strong id="decode">—</strong><span>ms</span></div></article>
-      </section>
-
-      <section class="section-heading"><div><span>03</span><h2>Live Signals</h2></div><p>LAST 90 SAMPLES</p></section>
-      <section class="chart-grid">
-        <article class="chart-panel"><div class="chart-title"><span>GPU Utilization</span><b id="chartGpuNow">—%</b></div><canvas id="gpuChart" aria-label="GPU utilization chart"></canvas></article>
-        <article class="chart-panel"><div class="chart-title"><span>VRAM Usage</span><b id="chartVramNow">—%</b></div><canvas id="vramChart" aria-label="VRAM usage chart"></canvas></article>
-        <article class="chart-panel"><div class="chart-title"><span>Throughput</span><b id="chartThroughputNow">— tok/s</b></div><canvas id="throughputChart" aria-label="Throughput chart"></canvas></article>
-        <article class="chart-panel"><div class="chart-title"><span>KV Cache Usage</span><b id="chartKvNow">—%</b></div><canvas id="kvChart" aria-label="KV cache chart"></canvas></article>
-        <article class="chart-panel chart-wide"><div class="chart-title"><span>Latency</span><div class="legend"><i class="cyan"></i>TTFT <i class="purple"></i>TPOT</div></div><canvas id="latencyChart" aria-label="Latency chart"></canvas></article>
-      </section>
-
-      <section class="quality-panel">
-        <div><span class="section-index">04</span><h2>Accuracy / Quality</h2><p>Evaluation adapter ready for lm-evaluation-harness, MMLU, GSM8K, HumanEval and custom datasets.</p></div>
-        <div class="quality-state"><span id="evalBenchmark">NO EVALUATION CONNECTED</span><strong id="evalScore">—</strong><small id="evalMetric">Awaiting benchmark results</small></div>
-      </section>
-      <footer><span>NEBULASCOPE v0.1.0</span><span id="lastUpdate">AWAITING TELEMETRY</span></footer>
-    </main>
-    <script src="/assets/app.js"></script>
-  </body>
-</html>
-
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NebulaScope · Nebula推理引擎观测</title><link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/platform.css"><link rel="stylesheet" href="/assets/charts.css"></head><body><main class="shell">
+<header><div class="brand"><svg viewBox="0 0 64 64" aria-label="星空望远镜标志"><path d="M8 16l3-7 3 7 7 3-7 3-3 7-3-7-7-3z"/><path d="M35 17l18 9-5 10-19-9zM31 28l-8 19m3-8 15 8M18 51h31"/></svg><div><h1>NebulaScope</h1><p>Nebula推理引擎观测</p></div></div><nav><button class="nav-btn active" data-page="overview">实时总览</button><button class="nav-btn" data-page="experiment">实验详情</button><button class="nav-btn" data-page="history">历史运行</button><button class="nav-btn" data-page="api">接入说明</button></nav><div class="head-actions"><button id="themeBtn">☀ 日间</button><button id="logBtn">监控终端</button><span class="connection"><i></i><b id="connectionText">连接中</b></span></div></header>
+<div id="overview" class="page active">
+<section class="task-hero"><div class="task-main"><span class="kicker">CURRENT EXPERIMENT</span><h2 id="taskName">暂无运行任务</h2><div class="tags"><span id="modelName">模型 —</span><span id="datasetName">数据集 —</span><span id="methodName">方法 —</span><span id="protocolName">协议 —</span></div></div><div class="progress-block"><div class="progress-copy"><b id="progressLabel">等待任务</b><span id="progressCount">0 / 0</span></div><div class="progress"><i id="progressBar"></i></div><strong id="progressPct">0.0%</strong><small id="eta">预计剩余 —</small></div></section>
+<section><div class="section-title"><div><small>01</small><h3>任务阶段</h3></div><span id="stageSummary">未开始</span></div><div id="stages" class="stages"><div class="stage active"><i>1</i><span>等待上报</span></div></div></section>
+<section><div class="section-title"><div><small>02</small><h3>关键结果</h3></div><span>点击卡片查看完整曲线</span></div><div class="kpi-grid"><button class="kpi primary drill" data-metric="accuracy" data-label="实时准确率" data-unit="%"><label>实时准确率</label><strong id="accuracy">—</strong><small id="accuracyDetail">0 已评测 · 0 无法解析</small></button><button class="kpi drill" data-metric="samples_per_second" data-label="样本吞吐" data-unit="samples/s"><label>样本吞吐</label><strong id="samplesSec">—</strong><small>samples / s</small></button><button class="kpi drill" data-metric="throughput_tps" data-label="输出吞吐" data-unit="tokens/s"><label>输出吞吐</label><strong id="throughput">—</strong><small>tokens / s</small></button><button class="kpi drill" data-metric="cache_reduction_x" data-label="Cache压缩" data-unit="×"><label>Cache 压缩</label><strong id="cacheReduction">—</strong><small>相对 Full KV</small></button><button class="kpi drill" data-metric="kv_cache_used_gb" data-label="GPU KV" data-unit="GB"><label>GPU KV / Basis</label><strong id="gpuCache">—</strong><small id="cpuBasis">CPU Basis —</small></button><button class="kpi drill" data-metric="batch_size" data-label="Batch Size" data-unit="seq"><label>Batch / 活跃请求</label><strong id="batch">—</strong><small id="activeRequests">— active</small></button></div></section>
+<section><div class="section-title"><div><small>03</small><h3>Token 流</h3></div><span>区分视觉、文本与当前阶段生成</span></div><div class="token-row"><button class="token-stat drill" data-metric="visual_tokens" data-label="视觉 Token" data-unit="tok"><label>视觉 Token</label><b id="visualTokens">—</b><span>进入语言模型</span></button><button class="token-stat drill" data-metric="text_tokens" data-label="文本 Token" data-unit="tok"><label>文本输入 Token</label><b id="textTokens">—</b><span>Prompt 文本部分</span></button><button class="token-stat drill" data-metric="input_tokens" data-label="总输入 Token" data-unit="tok"><label>总输入 Token</label><b id="inputTokens">—</b><span>视觉 + 文本</span></button><button class="token-stat drill" data-metric="stage_output_tokens" data-label="阶段输出 Token" data-unit="tok"><label>本阶段输出 Token</label><b id="stageOutputTokens">—</b><span>实际累计生成</span></button></div></section>
+<section><div class="section-title"><div><small>04</small><h3>延迟链路</h3></div><span>点击环节查看历史</span></div><div class="latency-row"><button class="drill" data-metric="vision_latency_ms" data-label="Vision" data-unit="ms"><label>Vision</label><b id="vision">—</b><span>ms</span></button><i>→</i><button class="drill" data-metric="compression_latency_ms" data-label="压缩开销" data-unit="ms"><label>压缩开销</label><b id="compression">—</b><span>ms</span></button><i>→</i><button class="drill" data-metric="prefill_latency_ms" data-label="Prefill" data-unit="ms"><label>Prefill</label><b id="prefill">—</b><span>ms</span></button><i>→</i><button class="drill" data-metric="ttft_ms" data-label="TTFT" data-unit="ms"><label>TTFT</label><b id="ttft">—</b><span>ms</span></button><i>→</i><button class="drill" data-metric="decode_latency_ms" data-label="Decode" data-unit="ms"><label>Decode</label><b id="decode">—</b><span>ms</span></button><i>→</i><button class="drill" data-metric="tpot_ms" data-label="TPOT" data-unit="ms"><label>TPOT</label><b id="tpot">—</b><span>ms</span></button><i>→</i><button class="drill" data-metric="e2e_latency_ms" data-label="E2E" data-unit="ms"><label>E2E</label><b id="e2e">—</b><span>ms</span></button></div></section>
+<section><div class="section-title chart-heading"><div><small>05</small><h3>可回溯曲线</h3></div><div class="range-tabs"><button data-window="120">2分钟</button><button data-window="600" class="active">10分钟</button><button data-window="3600">1小时</button><button data-window="all">全部</button></div></div><div class="charts six-charts"><article><div><b>样本吞吐</b><span id="chartSamplesNow">— samples/s</span></div><canvas id="samplesChart" aria-label="样本吞吐，纵轴单位samples/s，横轴为时间"></canvas></article><article><div><b>实时准确率</b><span id="chartAccuracyNow">—%</span></div><canvas id="accuracyChart" aria-label="准确率，纵轴单位百分比，横轴为时间"></canvas></article><article><div><b>Prefill 延迟</b><span id="chartPrefillNow">— ms</span></div><canvas id="prefillChart" aria-label="Prefill延迟，纵轴单位毫秒，横轴为时间"></canvas></article><article><div><b>TPOT</b><span id="chartTpotNow">— ms/token</span></div><canvas id="tpotChart" aria-label="单输出Token延迟，纵轴单位毫秒每Token，横轴为时间"></canvas></article><article><div><b>GPU 利用率</b><span id="chartGpuNow">—%</span></div><canvas id="gpuChart" aria-label="GPU利用率，纵轴单位百分比，横轴为时间"></canvas></article><article><div><b>显存占用</b><span id="chartVramNow">— GB</span></div><canvas id="vramChart" aria-label="显存占用，纵轴单位GB，横轴为时间"></canvas></article></div><div class="history-nav"><label>历史位置</label><input id="historySlider" type="range" min="0" max="100" value="100"><span id="historyRange">实时</span></div></section>
+<section><div class="section-title"><div><small>06</small><h3>计算资源</h3></div><span id="gpuName">GPU 检测中</span></div><div class="resource-grid"><button class="drill" data-gpu="utilization_pct" data-label="GPU利用率" data-unit="%"><label>GPU 利用率</label><b id="gpuUtil">—</b><span>%</span></button><button class="drill" data-gpu="memory_used_gb" data-label="显存占用" data-unit="GB"><label>显存</label><b id="vram">—</b><span>GB</span></button><button class="drill" data-metric="peak_vram_gb" data-label="峰值显存" data-unit="GB"><label>峰值显存</label><b id="peakVram">—</b><span>GB</span></button><button class="drill" data-gpu="power_w" data-label="GPU功耗" data-unit="W"><label>功耗</label><b id="power">—</b><span>W</span></button><button class="drill" data-gpu="temperature_c" data-label="GPU温度" data-unit="°C"><label>温度</label><b id="temperature">—</b><span>°C</span></button><button class="drill" data-metric="output_tokens" data-label="总输出Token" data-unit="tok"><label>总输出 Token</label><b id="outputTokens">—</b><span>tok</span></button></div></section></div>
+<div id="experiment" class="page"><section><div class="page-head"><span>EXPERIMENT INSPECTOR</span><h2>实验详情</h2><p>运行配置、质量异常和资源账单集中在这里。</p></div><div id="experimentTable" class="info-grid"></div></section></div>
+<div id="history" class="page"><section><div class="page-head"><span>RUN ARCHIVE</span><h2>历史运行</h2><p>当前服务周期内按任务查看全部遥测记录。</p></div><div id="runList" class="run-list"></div></section></div>
+<div id="api" class="page"><section><div class="page-head"><span>INTEGRATION</span><h2>接入说明</h2><p>任意模型、数据集和代码均可通过统一接口接入。</p></div><div class="api-grid"><article><h3>实时指标</h3><code>POST /api/metrics/inference</code><p>任务身份、阶段、Token、质量、延迟、吞吐、Cache和显存。</p></article><article><h3>任务日志</h3><code>POST /api/logs</code><p>上报运行信息、警告和错误，显示在监控终端。</p></article><article><h3>历史数据</h3><code>GET /api/history</code><p>读取当前服务周期的完整时间序列。</p></article></div></section></div>
+<footer><span>NEBULASCOPE v0.3 · NEBULA ENGINE OBSERVABILITY</span><span id="lastUpdate">等待遥测</span></footer></main>
+<aside id="metricDrawer" class="log-drawer metric-drawer" aria-hidden="true"><div class="log-head"><div><small>METRIC HISTORY</small><h3 id="metricTitle">指标详情</h3></div><button id="closeMetric">关闭</button></div><div id="metricMeta">当前任务完整历史</div><canvas id="detailChart"></canvas><div class="detail-stats"><div><span>当前</span><b id="detailNow">—</b></div><div><span>平均</span><b id="detailAvg">—</b></div><div><span>峰值</span><b id="detailMax">—</b></div></div></aside><aside id="logDrawer" class="log-drawer" aria-hidden="true"><div class="log-head"><div><small>LIVE TASK LOG</small><h3>监控终端</h3></div><button id="closeLogs">关闭</button></div><div id="logMeta">等待任务日志</div><pre id="logConsole">尚未收到日志。任务可通过 POST /api/logs 持续上报。</pre></aside><div id="scrim" class="scrim"></div><script src="/assets/app.js"></script></body></html>
